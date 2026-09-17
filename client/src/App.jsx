@@ -6,27 +6,23 @@ export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
   
-  // NEW: Check the URL hash on first load to determine the view
   const [view, setView] = useState(() => {
     const hash = window.location.hash.replace('#', '');
     if (hash) return hash;
     return token ? (user?.role === 'admin' ? 'admin' : 'dashboard') : 'landing';
   });
 
-  // NEW: A smart navigation function that updates the URL history and the React view
   const navigate = (newView) => {
     window.location.hash = newView;
     setView(newView);
   };
 
-  // NEW: Listen for the browser's Back/Forward buttons
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (hash) {
         setView(hash);
       } else {
-        // If the user clicks back all the way to the root URL, reset to default
         setView(token ? (user?.role === 'admin' ? 'admin' : 'dashboard') : 'landing');
       }
     };
@@ -38,6 +34,9 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
+  
+  // NEW: Add a loading state to prevent multiple rapid clicks
+  const [isLoading, setIsLoading] = useState(false);
 
   const [clients, setClients] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -65,7 +64,10 @@ export default function App() {
 
   const handleAuth = async (e) => {
     e.preventDefault();
+    if (isLoading) return; // Prevent extra clicks if already loading
+    
     setAuthError('');
+    setIsLoading(true); // Lock the button
     const endpoint = view === 'login' ? '/api/auth/login' : '/api/auth/register';
 
     try {
@@ -87,6 +89,8 @@ export default function App() {
       setAuthPassword('');
     } catch (err) {
       setAuthError(err.message);
+    } finally {
+      setIsLoading(false); // Unlock the button when done
     }
   };
 
@@ -255,28 +259,35 @@ export default function App() {
               <label>Email Address</label>
               <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} required />
               <label>Password</label>
-<div style={{ position: 'relative' }}>
-  <input 
-    type={showPassword ? "text" : "password"} 
-    value={authPassword} 
-    onChange={e => setAuthPassword(e.target.value)} 
-    required 
-    style={{ paddingRight: '2.5rem' }}
-  />
-  <button 
-    type="button" 
-    onClick={() => setShowPassword(!showPassword)} 
-    style={{ position: 'absolute', right: '12px', top: '10px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', boxShadow: 'none' }}
-  >
-    {showPassword ? (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-    ) : (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-    )}
-  </button>
-</div>
-              <button className="btn-primary" type="submit" style={{ width: '100%', marginTop: '0.5rem' }}>
-                {view === 'login' ? 'Sign In' : 'Register'}
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={authPassword} 
+                  onChange={e => setAuthPassword(e.target.value)} 
+                  required 
+                  style={{ paddingRight: '2.5rem' }}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)} 
+                  style={{ position: 'absolute', right: '12px', top: '10px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', boxShadow: 'none' }}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  )}
+                </button>
+              </div>
+              
+              {/* NEW: Button disables and shows "Processing..." while loading */}
+              <button 
+                className="btn-primary" 
+                type="submit" 
+                disabled={isLoading}
+                style={{ width: '100%', marginTop: '0.5rem', opacity: isLoading ? 0.7 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+              >
+                {isLoading ? 'Processing...' : (view === 'login' ? 'Sign In' : 'Register')}
               </button>
             </form>
             <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -372,60 +383,60 @@ export default function App() {
       )}
 
       {view === 'admin' && (
-  <div className="container">
-    <div className="card">
-      <h2>System Administration</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        Manage registered tenant accounts and reset user passwords.
-      </p>
+        <div className="container">
+          <div className="card">
+            <h2>System Administration</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              Manage registered tenant accounts and reset user passwords.
+            </p>
 
-      {adminMsg && (
-        <div style={{ padding: '0.65rem', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid var(--primary)', color: 'var(--text-main)', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.85rem' }}>
-          {adminMsg}
+            {adminMsg && (
+              <div style={{ padding: '0.65rem', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid var(--primary)', color: 'var(--text-main)', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                {adminMsg}
+              </div>
+            )}
+
+            <ul className="item-list">
+              {adminUsers.map(u => (
+                <li key={u.id} className="item-card" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <strong style={{ fontSize: '0.9rem' }}>{u.email}</strong>
+                      <span className="badge Paid" style={{ marginLeft: '8px' }}>{u.role}</span>
+                    </div>
+                    {u.role !== 'admin' && (
+                      <button 
+                        onClick={() => handleDeleteUser(u.id)}
+                        className="btn-secondary"
+                        style={{ color: 'var(--warning)', borderColor: 'rgba(245, 158, 11, 0.3)', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                      >
+                        Delete Account
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input 
+                      type="password" 
+                      placeholder="Type new password for user"
+                      value={resetPasswords[u.id] || ''}
+                      onChange={e => setResetPasswords({ ...resetPasswords, [u.id]: e.target.value })}
+                      style={{ margin: 0, padding: '0.5rem 0.75rem' }}
+                    />
+                    <button 
+                      onClick={() => handleResetPassword(u.id)}
+                      className="btn-primary"
+                      style={{ width: 'auto', whiteSpace: 'nowrap', padding: '0.5rem 1rem' }}
+                    >
+                      Update Password
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
-
-      <ul className="item-list">
-        {adminUsers.map(u => (
-          <li key={u.id} className="item-card" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.85rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <strong style={{ fontSize: '0.9rem' }}>{u.email}</strong>
-                <span className="badge Paid" style={{ marginLeft: '8px' }}>{u.role}</span>
-              </div>
-              {u.role !== 'admin' && (
-                <button 
-                  onClick={() => handleDeleteUser(u.id)}
-                  className="btn-secondary"
-                  style={{ color: 'var(--warning)', borderColor: 'rgba(245, 158, 11, 0.3)', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                >
-                  Delete Account
-                </button>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <input 
-                type="password" 
-                placeholder="Type new password for user"
-                value={resetPasswords[u.id] || ''}
-                onChange={e => setResetPasswords({ ...resetPasswords, [u.id]: e.target.value })}
-                style={{ margin: 0, padding: '0.5rem 0.75rem' }}
-              />
-              <button 
-                onClick={() => handleResetPassword(u.id)}
-                className="btn-primary"
-                style={{ width: 'auto', whiteSpace: 'nowrap', padding: '0.5rem 1rem' }}
-              >
-                Update Password
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  </div>
-)}
     </div>
   );
 }
