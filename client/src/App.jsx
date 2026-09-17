@@ -6,8 +6,33 @@ export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
   
-  // FIXED: Default to 'landing' if no token exists
-  const [view, setView] = useState(token ? (user?.role === 'admin' ? 'admin' : 'dashboard') : 'landing');
+  // NEW: Check the URL hash on first load to determine the view
+  const [view, setView] = useState(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash) return hash;
+    return token ? (user?.role === 'admin' ? 'admin' : 'dashboard') : 'landing';
+  });
+
+  // NEW: A smart navigation function that updates the URL history and the React view
+  const navigate = (newView) => {
+    window.location.hash = newView;
+    setView(newView);
+  };
+
+  // NEW: Listen for the browser's Back/Forward buttons
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        setView(hash);
+      } else {
+        // If the user clicks back all the way to the root URL, reset to default
+        setView(token ? (user?.role === 'admin' ? 'admin' : 'dashboard') : 'landing');
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [token, user]);
   
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -41,7 +66,6 @@ export default function App() {
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthError('');
-    // FIXED: Added /api/ prefix
     const endpoint = view === 'login' ? '/api/auth/login' : '/api/auth/register';
 
     try {
@@ -58,7 +82,7 @@ export default function App() {
       localStorage.setItem('user', JSON.stringify(data.user));
       setToken(data.token);
       setUser(data.user);
-      setView(data.user.role === 'admin' ? 'admin' : 'dashboard');
+      navigate(data.user.role === 'admin' ? 'admin' : 'dashboard');
       setAuthEmail('');
       setAuthPassword('');
     } catch (err) {
@@ -73,11 +97,10 @@ export default function App() {
     setUser(null);
     setClients([]);
     setInvoices([]);
-    setView('landing'); 
+    navigate('landing'); 
   };
 
   const fetchAdminUsers = async () => {
-    // FIXED: Added /api/ prefix
     const res = await fetch(`${API_BASE}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) setAdminUsers(await res.json());
   };
@@ -90,7 +113,6 @@ export default function App() {
     }
 
     try {
-      // FIXED: Added /api/ prefix
       const res = await fetch(`${API_BASE}/api/admin/users/${userId}/password`, {
         method: 'PATCH',
         headers: { 
@@ -111,7 +133,6 @@ export default function App() {
   const handleDeleteUser = async (userId) => {
     if (!confirm('Are you sure you want to delete this user account?')) return;
 
-    // FIXED: Added /api/ prefix
     const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
@@ -123,13 +144,11 @@ export default function App() {
   };
 
   const fetchClients = async () => {
-    // FIXED: Added /api/ prefix
     const res = await fetch(`${API_BASE}/api/clients`, { headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) setClients(await res.json());
   };
 
   const fetchInvoices = async () => {
-    // FIXED: Added /api/ prefix
     const res = await fetch(`${API_BASE}/api/invoices`, { headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) setInvoices(await res.json());
   };
@@ -137,7 +156,6 @@ export default function App() {
   const handleAddClient = async (e) => {
     e.preventDefault();
     if (!clientName || !clientEmail) return;
-    // FIXED: Added /api/ prefix
     await fetch(`${API_BASE}/api/clients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -151,7 +169,6 @@ export default function App() {
   const handleAddInvoice = async (e) => {
     e.preventDefault();
     if (!invoiceTitle || !invoiceAmount || !selectedClient) return;
-    // FIXED: Added /api/ prefix
     await fetch(`${API_BASE}/api/invoices`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -164,7 +181,6 @@ export default function App() {
 
   const toggleInvoiceStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
-    // FIXED: Added /api/ prefix
     await fetch(`${API_BASE}/api/invoices/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -179,14 +195,14 @@ export default function App() {
   return (
     <div>
       <nav className="navbar">
-        <div className="nav-brand" onClick={() => setView(token ? (user?.role === 'admin' ? 'admin' : 'dashboard') : 'landing')}>
+        <div className="nav-brand" onClick={() => navigate(token ? (user?.role === 'admin' ? 'admin' : 'dashboard') : 'landing')}>
           ClientFlow
         </div>
         <div className="nav-buttons">
           {token ? (
             <>
               {user?.role === 'admin' && (
-                <button className="btn-secondary" onClick={() => setView(view === 'admin' ? 'dashboard' : 'admin')}>
+                <button className="btn-secondary" onClick={() => navigate(view === 'admin' ? 'dashboard' : 'admin')}>
                   {view === 'admin' ? 'Back to Dashboard' : 'Admin Panel'}
                 </button>
               )}
@@ -195,8 +211,8 @@ export default function App() {
             </>
           ) : (
             <>
-              <button className="btn-secondary" onClick={() => { setView('login'); setAuthError(''); }}>Sign In</button>
-              <button className="btn-primary" onClick={() => { setView('register'); setAuthError(''); }}>Get Started</button>
+              <button className="btn-secondary" onClick={() => { navigate('login'); setAuthError(''); }}>Sign In</button>
+              <button className="btn-primary" onClick={() => { navigate('register'); setAuthError(''); }}>Get Started</button>
             </>
           )}
         </div>
@@ -208,8 +224,8 @@ export default function App() {
             <h1>Financial Management & Client Operations</h1>
             <p>Enterprise invoicing and client tracking tailored for contractors and growing agencies in the UK. Track revenue and balance sheets in real-time.</p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <button className="btn-primary" style={{ padding: '0.8rem 2rem', fontSize: '1rem' }} onClick={() => setView('register')}>Start Free Trial</button>
-              <button className="btn-secondary" style={{ padding: '0.8rem 2rem', fontSize: '1rem' }} onClick={() => setView('login')}>Sign In</button>
+              <button className="btn-primary" style={{ padding: '0.8rem 2rem', fontSize: '1rem' }} onClick={() => navigate('register')}>Start Free Trial</button>
+              <button className="btn-secondary" style={{ padding: '0.8rem 2rem', fontSize: '1rem' }} onClick={() => navigate('login')}>Sign In</button>
             </div>
           </section>
 
@@ -265,9 +281,9 @@ export default function App() {
             </form>
             <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
               {view === 'login' ? (
-                <>Need an account? <span style={{ color: 'var(--primary)', cursor: 'pointer' }} onClick={() => setView('register')}>Sign up</span></>
+                <>Need an account? <span style={{ color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('register')}>Sign up</span></>
               ) : (
-                <>Already registered? <span style={{ color: 'var(--primary)', cursor: 'pointer' }} onClick={() => setView('login')}>Sign in</span></>
+                <>Already registered? <span style={{ color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('login')}>Sign in</span></>
               )}
             </div>
           </div>
