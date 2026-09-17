@@ -25,7 +25,7 @@ export default function App() {
 
   const [adminUsers, setAdminUsers] = useState([]);
   const [resetPasswords, setResetPasswords] = useState({});
-const [adminMsg, setAdminMsg] = useState('');
+  const [adminMsg, setAdminMsg] = useState('');
 
   useEffect(() => {
     if (token) {
@@ -41,7 +41,8 @@ const [adminMsg, setAdminMsg] = useState('');
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthError('');
-    const endpoint = view === 'login' ? '/auth/login' : '/auth/register';
+    // FIXED: Added /api/ prefix
+    const endpoint = view === 'login' ? '/api/auth/login' : '/api/auth/register';
 
     try {
       const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -72,66 +73,72 @@ const [adminMsg, setAdminMsg] = useState('');
     setUser(null);
     setClients([]);
     setInvoices([]);
-    setView('landing'); // Send users back to the landing page on logout
+    setView('landing'); 
   };
 
   const fetchAdminUsers = async () => {
-    const res = await fetch(`${API_BASE}/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
+    // FIXED: Added /api/ prefix
+    const res = await fetch(`${API_BASE}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) setAdminUsers(await res.json());
   };
 
   const handleResetPassword = async (userId) => {
-  const newPass = resetPasswords[userId];
-  if (!newPass || newPass.length < 6) {
-    setAdminMsg('Password must be at least 6 characters.');
-    return;
-  }
+    const newPass = resetPasswords[userId];
+    if (!newPass || newPass.length < 6) {
+      setAdminMsg('Password must be at least 6 characters.');
+      return;
+    }
 
-  try {
-    const res = await fetch(`${API_BASE}/admin/users/${userId}/password`, {
-      method: 'PATCH',
-      headers: { 
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ newPassword: newPass })
+    try {
+      // FIXED: Added /api/ prefix
+      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/password`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ newPassword: newPass })
+      });
+      const data = await res.json();
+      setAdminMsg(data.message);
+      setResetPasswords({ ...resetPasswords, [userId]: '' });
+      setTimeout(() => setAdminMsg(''), 3000);
+    } catch (err) {
+      setAdminMsg('Failed to update password.');
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!confirm('Are you sure you want to delete this user account?')) return;
+
+    // FIXED: Added /api/ prefix
+    const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
     });
     const data = await res.json();
     setAdminMsg(data.message);
-    setResetPasswords({ ...resetPasswords, [userId]: '' });
+    fetchAdminUsers();
     setTimeout(() => setAdminMsg(''), 3000);
-  } catch (err) {
-    setAdminMsg('Failed to update password.');
-  }
-};
-
-const handleDeleteUser = async (userId) => {
-  if (!confirm('Are you sure you want to delete this user account?')) return;
-
-  const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  const data = await res.json();
-  setAdminMsg(data.message);
-  fetchAdminUsers();
-  setTimeout(() => setAdminMsg(''), 3000);
-};
+  };
 
   const fetchClients = async () => {
-    const res = await fetch(`${API_BASE}/clients`, { headers: { Authorization: `Bearer ${token}` } });
+    // FIXED: Added /api/ prefix
+    const res = await fetch(`${API_BASE}/api/clients`, { headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) setClients(await res.json());
   };
 
   const fetchInvoices = async () => {
-    const res = await fetch(`${API_BASE}/invoices`, { headers: { Authorization: `Bearer ${token}` } });
+    // FIXED: Added /api/ prefix
+    const res = await fetch(`${API_BASE}/api/invoices`, { headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) setInvoices(await res.json());
   };
 
   const handleAddClient = async (e) => {
     e.preventDefault();
     if (!clientName || !clientEmail) return;
-    await fetch(`${API_BASE}/clients`, {
+    // FIXED: Added /api/ prefix
+    await fetch(`${API_BASE}/api/clients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ name: clientName, email: clientEmail, status: 'Active' })
@@ -144,7 +151,8 @@ const handleDeleteUser = async (userId) => {
   const handleAddInvoice = async (e) => {
     e.preventDefault();
     if (!invoiceTitle || !invoiceAmount || !selectedClient) return;
-    await fetch(`${API_BASE}/invoices`, {
+    // FIXED: Added /api/ prefix
+    await fetch(`${API_BASE}/api/invoices`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ title: invoiceTitle, amount: Number(invoiceAmount), clientId: Number(selectedClient) })
@@ -156,7 +164,8 @@ const handleDeleteUser = async (userId) => {
 
   const toggleInvoiceStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
-    await fetch(`${API_BASE}/invoices/${id}`, {
+    // FIXED: Added /api/ prefix
+    await fetch(`${API_BASE}/api/invoices/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status: newStatus })
@@ -193,7 +202,6 @@ const handleDeleteUser = async (userId) => {
         </div>
       </nav>
 
-      {/* RESTORED PUBLIC LANDING PAGE */}
       {view === 'landing' && (
         <div>
           <section className="hero">
@@ -316,6 +324,9 @@ const handleDeleteUser = async (userId) => {
                 <label>Assign to Client</label>
                 <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)}>
                   <option value="">Select a client...</option>
+                  <option disabled={clients.length === 0} value="">
+                    {clients.length === 0 ? 'Add a client first' : '---'}
+                  </option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <button className="btn-primary" type="submit" style={{ width: '100%' }}>Issue Invoice</button>
